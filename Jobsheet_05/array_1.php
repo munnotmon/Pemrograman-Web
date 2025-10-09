@@ -6,10 +6,10 @@
 <body>
 
 
-<h2>Array Terindeks</h2>
+<h2>Array Terindeks dengan loop</h2>
 <?php
 
-$listmahasiswa=["R. Rawdhoh Ardhillah", "Maulida Aprina Putri", "Anjali Violita Pramestri"];
+$listmahasiswa=["Maulida Aprina Putri", "Anjali Violita Pramestri", "R. Rawdhoh Ardhillah"];
 
 /*
 echo $listmahasiswa[2] . "<br>";
