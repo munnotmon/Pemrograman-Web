@@ -36,14 +36,7 @@
         } else {
             echo "Email tidak valid.";
         }
-    }
-
-
-
-
-
-
-    
+    }   
     ?>
 </body>
 </html>
