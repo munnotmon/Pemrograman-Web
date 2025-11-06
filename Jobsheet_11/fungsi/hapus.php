@@ -1,72 +1,61 @@
 <?php
-// Memulai sesi
 session_start();
 
-// Memeriksa apakah sesi username tidak kosong
 if (!empty($_SESSION['username'])) {
-    // Memasukkan file koneksi database
     require '../config/koneksi.php';
-    // Memasukkan file fungsi pesan kilat untuk menampilkan pesan
     require '../fungsi/pesan_kilat.php';
-    // File anti_injection.php tidak diperlukan lagi
-    // require '../fungsi/anti_injection.php';
+    // require '../fungsi/anti_injection.php'; // <-- 1. DIHAPUS
 
-    // Pastikan variabel $koneksi adalah objek koneksi PostgreSQL yang valid
-    if (!isset($koneksi) || !$koneksi) {
-        pesan('danger', "Koneksi database PostgreSQL gagal.");
-        header("Location: ../index.php");
-        die();
-    }
-
-    // Memeriksa apakah parameter id tidak kosong (untuk hapus jabatan)
-    if (!empty($_GET['id']) && empty($_GET['anggota'])) {
-        // Mengambil id jabatan
+    // --- BLOK HAPUS JABATAN ---
+    if (!empty($_GET['jabatan'])) {
+        // 2. Ambil data mentah, tidak perlu 'antiInjection'
         $id = $_GET['id'];
 
-        // Query untuk menghapus data jabatan (Gunakan $1)
+        // 3. Buat kueri pakai placeholder ($1)
         $query = "DELETE FROM jabatan WHERE id = $1";
+        
+        // 4. Pakai pg_query_params() untuk eksekusi aman
+        $result = pg_query_params($koneksi, $query, [$id]);
 
-        // Menjalankan query menggunakan pg_query_params
-        if (pg_query_params($koneksi, $query, [$id])) {
+        if ($result) {
             pesan('success', "Jabatan Telah Terhapus.");
         } else {
             pesan('danger', "Jabatan Tidak Terhapus Karena: " . pg_last_error($koneksi));
         }
-        
         header("Location: ../index.php?page=jabatan");
 
-    // Memeriksa apakah parameter anggota tidak kosong (untuk hapus anggota)
+    // --- BLOK HAPUS ANGGOTA ---
     } elseif (!empty($_GET['anggota'])) {
-        
-        if (empty($_GET['id'])) {
-            pesan('danger', "ID Anggota tidak ditemukan.");
-            header("Location: ../index.php?page=anggota");
-            die();
-        }
-
-        // Mengambil id user
+        // 2. Ambil data mentah (ini adalah user_id)
         $id = $_GET['id'];
+
+        // 3. Kueri 1 (Hapus anggota) pakai placeholder
+        // Ini harus jalan duluan sebelum hapus data login-nya
+        $query_anggota = "DELETE FROM anggota WHERE user_id = $1";
         
-        // Query untuk menghapus data user (Gunakan $1)
-        $query1 = "DELETE FROM \"user\" WHERE user_id = $1";
+        // 4. Pakai pg_query_params()
+        $result_anggota = pg_query_params($koneksi, $query_anggota, [$id]);
         
-        // Menjalankan query pertama
-        if (pg_query_params($koneksi, $query1, [$id])) {
+        if ($result_anggota) {
+            // 3. Kueri 2 (Hapus user) pakai placeholder
+            $query_user = "DELETE FROM \"users\" WHERE id = $1";
             
-            // NOTE: Jika Anda menggunakan ON DELETE CASCADE, query2 tidak perlu.
-            // Tapi jika tidak, kita hapus manual data anggota terkait.
-            $query2 = "DELETE FROM anggota WHERE user_id = $1";
-            
-            if (pg_query_params($koneksi, $query2, [$id])) {
+            // 4. Pakai pg_query_params() lagi
+            $result_user = pg_query_params($koneksi, $query_user, [$id]);
+
+            if ($result_user) {
                 pesan('success', "Anggota Telah Terhapus.");
             } else {
-                pesan('warning', "Data Login Terhapus, Data Anggota Gagal Dihapus: " . pg_last_error($koneksi));
+                // (Pesan error Anda sebelumnya sedikit membingungkan, saya perbaiki logikanya)
+                pesan('warning', "Data Anggota Terhapus, Tapi Gagal Hapus Data Login: " . pg_last_error($koneksi));
             }
         } else {
-            pesan('danger', "Anggota Tidak Terhapus Karena: " . pg_last_error($koneksi));
+            pesan('danger', "Data Anggota Gagal Dihapus (Data Login Aman): " . pg_last_error($koneksi));
         }
-        
         header("Location: ../index.php?page=anggota");
     }
+} else {
+    // Jika session username kosong, tendang ke login
+    header("Location: ../login.php");
 }
 ?>

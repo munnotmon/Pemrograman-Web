@@ -1,91 +1,82 @@
 <?php
-// Memulai sesi
 session_start();
-
-// Memeriksa apakah sesi username tidak kosong
 if (!empty($_SESSION['username'])) {
-    // Memasukkan file koneksi database
     require '../config/koneksi.php';
-    // Memasukkan file fungsi pesan kilat untuk menampilkan pesan
     require '../fungsi/pesan_kilat.php';
-    // File anti_injection.php tidak diperlukan lagi, kita gunakan prepared statements
-    // require '../fungsi/anti_injection.php';
+    // require '../fungsi/anti_injection.php'; // <-- 1. DIHAPUS, SUDAH TIDAK PERLU
 
-    // Pastikan variabel $koneksi adalah objek koneksi PostgreSQL yang valid
-    if (!isset($koneksi) || !$koneksi) {
-        pesan('danger', "Koneksi database PostgreSQL gagal.");
-        header("Location: ../index.php"); // Redirect ke index utama
-        die();
-    }
-
-    // --- LOGIKA TAMBAH JABATAN (BARU) ---
+    // --- BLOK TAMBAH JABATAN ---
     if (!empty($_GET['jabatan'])) {
+        // 2. Ambil data mentah, tidak perlu 'antiInjection'
         $jabatan = $_POST['jabatan'];
         $keterangan = $_POST['keterangan'];
 
-        // Gunakan prepared statements
+        // 3. Buat kueri pakai placeholder ($1, $2)
         $query = "INSERT INTO jabatan (jabatan, keterangan) VALUES ($1, $2)";
-        $params = [$jabatan, $keterangan];
 
-        if (pg_query_params($koneksi, $query, $params)) {
+        // 4. Pakai pg_query_params() untuk eksekusi aman
+        $result = pg_query_params($koneksi, $query, [$jabatan, $keterangan]);
+
+        if ($result) {
             pesan('success', "Jabatan Baru Ditambahkan.");
         } else {
-            pesan('danger', "Gagal Menambahkan Jabatan: " . pg_last_error($koneksi));
+            pesan('danger', "Menambahkan Jabatan Gagal Karena: " . pg_last_error($koneksi));
         }
         header("Location: ../index.php?page=jabatan");
 
-    // --- LOGIKA TAMBAH ANGGOTA (DIMODIFIKASI JADI AMAN) ---
+    // --- BLOK TAMBAH ANGGOTA ---
     } elseif (!empty($_GET['anggota'])) {
-        
-        // Ambil data mentah (TANPA antiinjection)
+        // 2. Ambil semua data mentah
         $username = $_POST['username'];
         $password = $_POST['password'];
         $level = $_POST['level'];
-        $jabatan = $_POST['jabatan'];
+        $jabatan_id = $_POST['jabatan']; // (Asumsi ini adalah jabatan_id)
         $nama = $_POST['nama'];
         $jenis_kelamin = $_POST['jenis_kelamin'];
         $alamat = $_POST['alamat'];
         $no_telp = $_POST['no_telp'];
 
-        // Membuat salt acak
+        // Logika password Anda (ini sudah benar, tidak diubah)
         $salt = bin2hex(random_bytes(16));
-        // Menggabungkan salt dengan password yang dimasukkan
         $combined_password = $salt . $password;
-        // Mengenkripsi password menggunakan BCRYPT
         $hashed_password = password_hash($combined_password, PASSWORD_BCRYPT);
+
+        // 3. Kueri 1 (Insert user) pakai placeholder
+        // (Catatan: Pastikan nama tabel Anda "users" atau "user")
+        $query_user = "INSERT INTO \"user\" (username, password, salt, level) 
+                       VALUES ($1, $2, $3, $4) 
+                       RETURNING id";
+        $params_user = [$username, $hashed_password, $salt, $level];
         
-        // --- PROSES INSERT KE POSTGRESQL (Menggunakan Parameter) ---
+        // 4. Pakai pg_query_params()
+        $result_user = pg_query_params($koneksi, $query_user, $params_user);
 
-        // Query 1: Insert ke tabel "user"
-        $query1 = "INSERT INTO \"user\" (username, password, salt, level) 
-                   VALUES ($1, $2, $3, $4) 
-                   RETURNING user_id";
-        $params1 = [$username, $hashed_password, $salt, $level];
+        if ($result_user) {
+            // Berhasil insert user, ambil id-nya
+            $row = pg_fetch_assoc($result_user);
+            $last_id = $row['id']; // Ini adalah user_id yang baru
 
-        if ($result1 = pg_query_params($koneksi, $query1, $params1)) {
-            // Jika berhasil, ambil ID user terakhir
-            $row = pg_fetch_row($result1);
-            $last_id = $row[0]; // user_id yang di-return
+            // 3. Kueri 2 (Insert anggota) pakai placeholder
+            $query_anggota = "INSERT INTO anggota (nama, jenis_kelamin, alamat, no_telp, user_id, jabatan_id) 
+                              VALUES ($1, $2, $3, $4, $5, $6)";
+            $params_anggota = [$nama, $jenis_kelamin, $alamat, $no_telp, $last_id, $jabatan_id];
 
-            // Query 2: Insert ke tabel anggota
-            $query2 = "INSERT INTO anggota (nama, jenis_kelamin, alamat, no_telp, user_id, jabatan_id) 
-                       VALUES ($1, $2, $3, $4, $5, $6)";
-            $params2 = [$nama, $jenis_kelamin, $alamat, $no_telp, $last_id, $jabatan];
+            // 4. Pakai pg_query_params() lagi
+            $result_anggota = pg_query_params($koneksi, $query_anggota, $params_anggota);
 
-            // Menjalankan query kedua
-            if (pg_query_params($koneksi, $query2, $params2)) {
+            if ($result_anggota) {
                 pesan('success', "Anggota Baru Ditambahkan.");
             } else {
-                // Jika query 2 gagal
-                pesan('warning', "Gagal Menambahkan Anggota (Data Login Tersimpan) Karena: " . pg_last_error($koneksi));
+                pesan('warning', "Gagal Menambahkan Anggota (Data Login Dibuat): " . pg_last_error($koneksi));
             }
         } else {
-            // Jika query 1 gagal
-            pesan('danger', "Gagal Menambahkan Data Login Karena: " . pg_last_error($koneksi));
+            // Gagal saat insert data login (kueri 1)
+            pesan('danger', "Gagal Menambahkan Data Login Anggota: " . pg_last_error($koneksi));
         }
-        
-        // Redirect kembali ke halaman anggota
         header("Location: ../index.php?page=anggota");
     }
+} else {
+    // Jika session username kosong, tendang ke login
+    header("Location: ../login.php");
 }
 ?>

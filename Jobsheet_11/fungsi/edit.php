@@ -1,90 +1,102 @@
 <?php
 session_start();
-// Memeriksa apakah sesi username tidak kosong
+
 if (!empty($_SESSION['username'])) {
-    // Memasukkan file koneksi.php untuk menghubungkan ke database
     require '../config/koneksi.php';
-    // Memasukkan file pesan_kilat.php yang berisi fungsi untuk menampilkan pesan kilat
     require '../fungsi/pesan_kilat.php';
-    // anti_injection.php TELAH DIHAPUS - KITA TIDAK MEMBUTUHKANNYA LAGI
+    // require '../fungsi/anti_injection.php'; // <-- 1. DIHAPUS
 
-    // Pastikan variabel $koneksi adalah objek koneksi PostgreSQL yang valid
-    if (!isset($koneksi) || !$koneksi) {
-        pesan('danger', "Koneksi database PostgreSQL gagal.");
-        header("Location: ../index.php");
-        die();
-    }
-
-    // Memeriksa apakah terdapat parameter jabatan dalam URL
+    // --- BLOK EDIT JABATAN ---
     if (!empty($_GET['jabatan'])) {
-        // --- Ambil data mentah (tanpa 'anti-injection') ---
+        // 2. Ambil data mentah, tidak perlu 'antiInjection'
         $id = $_POST['id'];
         $jabatan = $_POST['jabatan'];
         $keterangan = $_POST['keterangan'];
         
-        // --- Gunakan Prepared Statements ---
-        // $1, $2, $3 adalah "placeholder" yang aman
+        // 3. Buat kueri pakai placeholder ($1, $2, $3)
         $query = "UPDATE jabatan SET jabatan = $1, keterangan = $2 WHERE id = $3";
-        // Masukkan data ke dalam array, urutan harus sesuai dengan $1, $2, $3
-        $params = [$jabatan, $keterangan, $id];
         
-        // Menjalankan query dengan pg_query_params()
-        if (pg_query_params($koneksi, $query, $params)) {
+        // 4. Pakai pg_query_params()
+        // Urutan array harus sama dengan urutan placeholder: $1=$jabatan, $2=$keterangan, $3=$id
+        $result = pg_query_params($koneksi, $query, [$jabatan, $keterangan, $id]);
+
+        if ($result) {
             pesan('success', "Jabatan Telah Diubah.");
         } else {
-            pesan('danger', "Mengubah Jabatan Karena: " . pg_last_error($koneksi));
+            pesan('danger', "Mengubah Jabatan Gagal Karena: " . pg_last_error($koneksi));
         }
         header("Location: ../index.php?page=jabatan");
 
-    // Memeriksa apakah terdapat parameter anggota dalam URL
+    // --- BLOK EDIT ANGGOTA ---
     } elseif (!empty($_GET['anggota'])) {
-        // --- Ambil data mentah (tanpa 'anti-injection') ---
-        $user_id = $_POST['id'];
+        // 2. Ambil semua data mentah
+        $user_id = $_POST['id']; // Ini adalah user_id
         $nama = $_POST['nama'];
-        $jabatan = $_POST['jabatan'];
+        $jabatan_id = $_POST['jabatan']; // (Asumsi ini adalah jabatan_id)
         $jenis_kelamin = $_POST['jenis_kelamin'];
         $alamat = $_POST['alamat'];
         $no_telp = $_POST['no_telp'];
         $username = $_POST['username'];
+
+        // 3. Kueri 1 (Update anggota) pakai placeholder
+        $query_anggota = "UPDATE anggota SET nama = $1,
+                            jenis_kelamin = $2,
+                            alamat = $3,
+                            no_telp = $4,
+                            jabatan_id = $5
+                          WHERE user_id = $6";
+        // 4. Siapkan array parameternya
+        $params_anggota = [$nama, $jenis_kelamin, $alamat, $no_telp, $jabatan_id, $user_id];
         
-        // --- Gunakan Prepared Statements untuk query anggota ---
-        $query_anggota = "UPDATE anggota SET nama = $1, jenis_kelamin = $2, alamat = $3, no_telp = $4, jabatan_id = $5 WHERE user_id = $6";
-        $params_anggota = [$nama, $jenis_kelamin, $alamat, $no_telp, $jabatan, $user_id];
-        
-        if (pg_query_params($koneksi, $query_anggota, $params_anggota)) {
-            // Memeriksa apakah password kosong atau tidak
+        // 4. Eksekusi kueri anggota
+        $result_anggota = pg_query_params($koneksi, $query_anggota, $params_anggota);
+
+        if ($result_anggota) {
+            // Cek apakah user juga ganti password
             if (!empty($_POST['password'])) {
-                // Proses hash password (ini sudah aman)
+                // --- JIKA PASSWORD DIUBAH ---
                 $password = $_POST['password'];
                 $salt = bin2hex(random_bytes(16));
                 $combined_password = $salt . $password;
                 $hashed_password = password_hash($combined_password, PASSWORD_BCRYPT);
-                
-                // Query untuk update user DENGAN password
-                $query_user = "UPDATE \"user\" SET username = $1, password = $2, salt = $3 WHERE user_id = $4";
+
+                // 3. Kueri 2 (Update user + password baru)
+                // (Catatan: Pastikan nama tabel Anda "users" atau "user")
+                $query_user = "UPDATE \"users\" SET username = $1, password = $2, salt = $3 WHERE id = $4";
                 $params_user = [$username, $hashed_password, $salt, $user_id];
                 
-                if (pg_query_params($koneksi, $query_user, $params_user)) {
-                    pesan('success', "Anggota Telah Diubah.");
+                // 4. Eksekusi kueri user
+                $result_user = pg_query_params($koneksi, $query_user, $params_user);
+
+                if ($result_user) {
+                    pesan('success', "Anggota Telah Diubah (Password Diperbarui).");
                 } else {
                     pesan('warning', "Data Anggota Berhasil Diubah, Tetapi Password Gagal Diubah Karena: " . pg_last_error($koneksi));
                 }
             } else {
-                // Jika password kosong, hanya mengupdate username
-                // Query untuk update user TANPA password
-                $query_user = "UPDATE \"user\" SET username = $1 WHERE user_id = $2";
-                $params_user = [$username, $user_id];
+                // --- JIKA PASSWORD TIDAK DIUBAH (hanya username) ---
                 
-                if (pg_query_params($koneksi, $query_user, $params_user)) {
+                // 3. Kueri 2 (Update user, tanpa password)
+                // (Saya perbaiki nama tabel Anda dari "user" menjadi "users" agar konsisten)
+                $query_user = "UPDATE \"users\" SET username = $1 WHERE id = $2";
+                $params_user = [$username, $user_id];
+
+                // 4. Eksekusi kueri user
+                $result_user = pg_query_params($koneksi, $query_user, $params_user);
+
+                if ($result_user) {
                     pesan('success', "Anggota Telah Diubah.");
                 } else {
                     pesan('warning', "Data Anggota Berhasil Diubah, Tetapi Username Gagal Diubah Karena: " . pg_last_error($koneksi));
                 }
             }
         } else {
-            pesan('danger', "Mengubah Anggota Karena: " . pg_last_error($koneksi));
+            pesan('danger', "Mengubah Data Anggota Gagal Karena: " . pg_last_error($koneksi));
         }
         header("Location: ../index.php?page=anggota");
     }
+} else {
+    // Jika session username kosong, tendang ke login
+    header("Location: ../login.php");
 }
 ?>

@@ -1,17 +1,13 @@
 <?php
-// Konfigurasi koneksi PostgreSQL
-$host = "localhost";
-$port = "5432";
-$dbname = "prakwebdb";
-$user = "postgres";
-$password = "12345678";
+    date_default_timezone_set("Asia/Jakarta");
+    $host = "localhost";
+    $port = "5432";
+    $user = "postgres";
+    $pass = "12345678";
+    $db = "prakwebdb";
+    $koneksi = pg_connect("host=$host port=$port dbname=$db user=$user password=$pass") or die("Koneksi gagal");
 
-// String koneksi
-$koneksi = pg_connect("host=$host port=$port dbname=$dbname user=$user password=$password");
-
-// Cek koneksi
-if (!$koneksi) {
-    // Menggunakan pg_last_error() untuk detail error
-    die("Koneksi database gagal: " . pg_last_error());
-}
+    if (!$koneksi) {
+        die("Koneksi gagal: " . pg_last_error());
+    }
 ?>
