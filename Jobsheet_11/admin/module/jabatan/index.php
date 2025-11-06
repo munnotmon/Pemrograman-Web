@@ -42,8 +42,8 @@
                         <?php 
                             $no = 1;
                             // Query untuk mengambil data jabatan dari database
-                            $query = "SELECT * FROM jabatan order by id desc";
-                            $result = pg_query($koneksi, $query);
+                            $query = "SELECT * FROM jabatan WHERE id = $1";
+                            $result = pg_query_params($koneksi, $query, [$id]);
                             while ($row = pg_fetch_assoc($result)) {
                         ?>
                             <tr>

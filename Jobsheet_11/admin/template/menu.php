@@ -44,7 +44,7 @@
                 <li class="nav-item">
                     <a class="nav-link d-flex align-items-center gap-2" href="index.php?page=jabatan">
                         <!-- Icon untuk Jabatan -->
-                        <svg class="bi">
+                        <svg class="bi"
                             <use xlink:href="#puzzle" />
                         </svg>
                         Jabatan

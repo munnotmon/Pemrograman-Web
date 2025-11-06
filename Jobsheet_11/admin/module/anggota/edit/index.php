@@ -9,8 +9,8 @@
         $id = $_GET['id'];
 
         // Query untuk mendapatkan data anggota berdasarkan ID
-        $query = "SELECT * FROM anggota a, jabatan j, user u WHERE a.jabatan_id = j.id AND a.user_id = u.id AND a.user_id = '$id'";
-        $result = pg_query($koneksi, $query);
+        $$query = "SELECT * FROM anggota a, jabatan j, user u WHERE a.jabatan_id = j.id AND a.user_id = u.id AND a.user_id = $1";
+        $result = pg_query_params($koneksi, $query, [$id]);
         $row = pg_fetch_assoc($result);
         ?>
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
@@ -43,8 +43,8 @@
                                         <?php
                                         // Query untuk mendapatkan daftar jabatan
                                         $query2 = "SELECT * FROM jabatan order by jabatan asc";
-                                        $reqult2 = mysqli_query($koneksi, $query2);
-                                        while ($row2 = mysqli_fetch_assoc($reqult2)) {
+                                        $reqult2 = pg_query($koneksi, $query2);
+                                        while ($row2 = pg_fetch_assoc($reqult2)) {
                                             ?>
                                             <!-- Opsi jabatan -->
                                             <option value="<?= $row2['id'] ?>" <?= ($row['jabatan_id'] == $row2['id']) ? 'selected' : '' ?>>

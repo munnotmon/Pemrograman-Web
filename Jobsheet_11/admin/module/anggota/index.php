@@ -102,8 +102,8 @@
                                             <?php
                                             // Query untuk mengambil data jabatan dari database
                                             $query2 = "SELECT * FROM jabatan order by jabatan asc";
-                                            $reqult2 = mysqli_query($koneksi, $query2);
-                                            while ($row2 = mysqli_fetch_assoc($reqult2)) {
+                                            $reqult2 = pg_query($koneksi, $query2);
+                                            while ($row2 = pg_fetch_assoc($reqult2)) {
                                                 ?>
                                                 <option value="<?= $row2['id'] ?>">
                                                     <?= $row2['jabatan'] ?>

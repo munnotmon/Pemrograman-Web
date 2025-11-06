@@ -14,7 +14,4 @@ if (!$koneksi) {
     // Menggunakan pg_last_error() untuk detail error
     die("Koneksi database gagal: " . pg_last_error());
 }
-
-// Opsional: Atur encoding klien jika diperlukan (misalnya ke UTF8)
-// pg_set_client_encoding($koneksi, "utf8"); 
 ?>

@@ -28,7 +28,7 @@ include 'fungsi/pesan_kilat.php';
     <link rel="shortcut icon" href="assets/img/favicons/favicon.ico">
 
     <!-- Memuat file CSS Bootstrap -->
-    <link href="assets/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/PemogramanWeb/Jobsheet_11/assets/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Inline CSS untuk menyesuaikan tampilan formulir login -->
     <style>
@@ -138,7 +138,7 @@ include 'fungsi/pesan_kilat.php';
 
 
     <!-- Custom styles for this template -->
-    <link href="sign-in.css" rel="stylesheet">
+    <link href="/PemogramanWeb/Jobsheet_11/assets/custom/sign-in.css" rel="stylesheet">
 </head>
 
 <body class="d-flex align-items-center py-4 bg-body-tertiary">
